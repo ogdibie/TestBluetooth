@@ -4,8 +4,45 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".MainActivity">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="24dp"
+            android:text="@string/switch_led"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="95dp"
+            android:id="@+id/textView" />
 
-    <TextView android:text="@string/hello_world" android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/LedOn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/LED_On"
+            android:layout_below="@+id/textView"
+            android:layout_alignLeft="@+id/LedOff"
+            android:layout_alignStart="@+id/LedOff" />"
+
+        <Button
+            android:id="@+id/LedOff"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/LED_Off"
+            android:layout_below="@+id/LedOn"
+            android:layout_centerHorizontal="true"
+            android:layout_marginTop="42dp" />"
+
+        <TextView
+            android:id="@+id/led_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="24dp"
+            android:layout_alignParentBottom="true"
+            android:layout_alignParentLeft="true"
+            android:layout_alignParentStart="true"
+            android:layout_marginBottom="44dp"
+            android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true" />
+
 
 </RelativeLayout>

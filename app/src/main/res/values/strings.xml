@@ -3,4 +3,7 @@
 
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="LED_On">Turn on LED</string>
+    <string name="LED_Off">Turn off LED</string>
+    <string name="switch_led">Choose to ON or OFF LED</string>
 </resources>
