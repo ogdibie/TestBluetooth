@@ -1,13 +1,16 @@
 package testbluetooth.com.example.ogheneruona.testbluetooth;
 
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
 import android.os.Handler;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -20,7 +23,7 @@ import java.util.UUID;
 
 public class MainActivity extends ActionBarActivity {
     //given name of the bluetooth used in tagging
-    private static final String TAG = "bluetooth1";
+    private static final String TAG = "TestBluetooth1";
 
     final int RECIEVE_MESSAGE = 1;        // Status  for Handler
     //Buttons to control LED
@@ -50,6 +53,162 @@ public class MainActivity extends ActionBarActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //find and set up buttons and text view with the content from the layout
+        btnOn = (Button) findViewById(R.id.LedOn);
+        btnOff = (Button) findViewById(R.id.LedOff);
+        txtArduino = (TextView) findViewById(R.id.led_state);
+
+        //define the handler on how to handle messages recieved
+
+        h = new Handler() {
+            public void handleMessage(android.os.Message msg) {
+                switch (msg.what) {
+                    case RECIEVE_MESSAGE:                                                   // if receive massage
+                        byte[] readBuf = (byte[]) msg.obj;
+                        String strIncom = new String(readBuf, 0, msg.arg1);                 // create string from bytes array
+                        sb.append(strIncom);                                                // append string
+                        int endOfLineIndex = sb.indexOf("\r\n");                            // determine the end-of-line
+                        if (endOfLineIndex > 0) {                                            // if end-of-line,
+                            String sbprint = sb.substring(0, endOfLineIndex);               // extract string
+                            sb.delete(0, sb.length());                                      // and clear
+                            txtArduino.setText("Data from Arduino: " + sbprint);            // update TextView
+                            btnOff.setEnabled(true);
+                            btnOn.setEnabled(true);
+                        }
+                        //Log.d(TAG, "...String:"+ sb.toString() +  "Byte:" + msg.arg1 + "...");
+                        break;
+                }
+            }
+        };
+
+        //get a Bluetooth adapter for Bluetooth calling static method on class BluetoothAdapter
+        btAdapter = BluetoothAdapter.getDefaultAdapter();
+        checkBTState();
+
+        //if the ON button is Clicked
+        btnOn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                btnOn.setEnabled(false);        //stop user from pressing a button
+                mConnectedThread.write("1");    // Send "1" via Bluetooth
+                //sendData("1");
+                //oast.makeText(getBaseContext(), "Turn on LED", Toast.LENGTH_SHORT).show();
+                btnOff.setEnabled(true);
+            }
+        });
+        //if the OFF button is Clicked
+        btnOff.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                btnOff.setEnabled(false);
+                mConnectedThread.write("0");
+                //Toast.makeText(getBaseContext(), "Turn off LED", Toast.LENGTH_SHORT).show();
+                btnOn.setEnabled(true);
+            }
+        });
+
+
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        Log.d(TAG, "...onResume - try connect...");
+
+        // Set up a pointer to the remote node using it's address.
+        BluetoothDevice device = btAdapter.getRemoteDevice(address);
+
+        // Two things are needed to make a connection:
+        //   A MAC address, which we got above.
+        //   A Service ID or UUID.  In this case we are using the
+        //     UUID for SPP (in the createBluetoothSocket.
+
+        //create Bluetooth Socket
+        try {
+            btSocket = createBluetoothSocket(device);
+        } catch (IOException e1) {
+            errorExit("Fatal Error", "In onResume() and socket create failed: " + e1.getMessage() + ".");
+        }
+
+        // Discovery is resource intensive.  Make sure it isn't going on
+        // when you attempt to connect and pass your message.
+        btAdapter.cancelDiscovery();
+
+        // Establish the connection.  This will block until it connects.
+        Log.d(TAG, "...Connecting...");
+        try {
+            btSocket.connect();
+            Log.d(TAG, "...Connection ok...");
+        } catch (IOException e) {
+            try {
+                btSocket.close();
+            } catch (IOException e2) {
+                errorExit("Fatal Error", "In onResume() and unable to close socket during connection failure" + e2.getMessage() + ".");
+            }
+        }
+
+        // Create a data stream so we can talk to server.
+        Log.d(TAG, "...Create Socket...");
+
+        mConnectedThread = new ConnectedThread(btSocket);
+        mConnectedThread.start();
+    }
+
+
+    /**
+     * Method is used to flush stream in since the activity would be paused at that moment
+     */
+    @Override
+    public void onPause() {
+        super.onPause();
+
+        Log.d(TAG, "...In onPause()...");
+
+        if (outStream != null) {
+            try {
+                outStream.flush();
+            } catch (IOException e) {
+                errorExit("Fatal Error", "In onPause() and failed to flush output stream: " + e.getMessage() + ".");
+            }
+        }
+
+        try     {
+            btSocket.close();
+        } catch (IOException e2) {
+            errorExit("Fatal Error", "In onPause() and failed to close socket." + e2.getMessage() + ".");
+        }
+    }
+    private void checkBTState() {
+        // Check for Bluetooth support and then check to make sure it is turned on
+        // Emulator doesn't support Bluetooth and will return null
+        if(btAdapter==null) {
+            errorExit("Fatal Error", "Bluetooth not support");
+        }
+        else {
+            if (btAdapter.isEnabled()) {
+                Log.d(TAG, "...Bluetooth ON...");
+            }
+            else {
+                //Prompt user to turn on Bluetooth
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent,REQUEST_ENABLE_BT);
+            }
+        }
+    }
+
+    /**
+     *
+     * @param device (Remote Bluetooth device : one with one Server Socket)
+     * @return Returns the Bluetooth Socket to the Bluetooth Server
+     * @throws IOException
+     */
+    private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
+        try {
+            return  device.createRfcommSocketToServiceRecord(MY_UUID);
+        } catch (Exception e) {
+            Log.e(TAG, "Could not create secure RFComm Connection",e);
+            return null;
+        }
     }
 
     @Override
@@ -117,6 +276,7 @@ public class MainActivity extends ActionBarActivity {
             }
         }
 
+        /* Call this from the main activity to send data to the remote device */
         public void write(String message) {
             Log.d(TAG, "...Data to send: " + message + "...");
             byte[] msgBuffer = message.getBytes();
